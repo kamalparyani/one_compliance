@@ -14,6 +14,7 @@ class ComplianceAgreement(Document):
 		set_compliance_dates(self)
 		self.sign_validation()
 		self.create_project_if_not_exists()
+		self.create_project_for_not_allow_repeat()
 
 	def before_insert(self):
 		# from hrms.hr.doctype.shift_type.shift_type import process_auto_attendance_for_all_shifts
@@ -38,6 +39,9 @@ class ComplianceAgreement(Document):
 		self.validate_agreement_dates()
 		self.validate_date_range()
 		self.change_agreement_status()
+
+	def after_insert(self):
+		self.set_date_values()
 
 	def on_trash(self):
 		delete_project_along_with_compliance_agreement = frappe.db.get_single_value('Compliance Settings', 'delete_project_along_with_compliance_agreement')
@@ -152,6 +156,42 @@ class ComplianceAgreement(Document):
 			next_invoice_date = calculate_next_invoice_date(self.next_invoice_date, self.invoice_generation, self.valid_upto)
 			frappe.db.set_value(self.doctype, self.name, "next_invoice_date", next_invoice_date)
 			frappe.db.commit()
+
+	def set_date_values(self):
+		"""Set default compliance dates for categories without dates"""
+		if self.compliance_category_details:
+			for compliance_category in self.compliance_category_details:
+				if not compliance_category.compliance_date:
+					compliance_category.compliance_date = self.valid_from
+					compliance_category.next_compliance_date = add_months(self.valid_from, 1)
+					# Persist the changes to database
+					frappe.db.set_value(
+						'Compliance Category Details',
+						compliance_category.name,
+						{
+							'compliance_date': self.valid_from,
+							'next_compliance_date': add_months(self.valid_from, 1)
+						}
+					)
+
+	def create_project_for_not_allow_repeat(self):
+		"""Create projects for compliance categories on valid_from date"""
+			
+		if self.compliance_category_details and self.status == 'Active' and self.workflow_state == 'Customer Approved':
+			for compliance_category in self.compliance_category_details:
+				if not check_project_exists_or_not(compliance_category.compliance_sub_category, self.name):
+					project_date = compliance_category.compliance_date or self.valid_from
+					# Only create project if date matches valid_from
+					if getdate(project_date) == getdate(self.valid_from):
+						enqueue(
+							create_project_against_sub_category,
+							queue='long',
+							now=False,
+							compliance_agreement=self.name,
+							compliance_sub_category=compliance_category.compliance_sub_category,
+							compliance_category_details_id=compliance_category.name,
+							compliance_date=project_date
+						)
 
 def calculate_next_invoice_date(current_invoice_date, invoice_generation, valid_upto):
 	if invoice_generation == 'Monthly':
@@ -459,3 +499,7 @@ def get_rate_from_compliance_agreement(compliance_agreement, compliance_sub_cate
 		)
 	if rate_result:
 		return rate_result[0].rate
+
+
+
+	
