@@ -588,92 +588,107 @@ def get_company_income_account(company, compliance_sub_category):
 		return income_result[0].default_income_account
 
 def set_task_readiness_flow_on_creation(doc, method=None):
-    if not doc.compliance_sub_category:
-        return
+	if not doc.compliance_sub_category:
+		return
 
-    compliance_subcategory = frappe.get_doc("Compliance Sub Category", doc.compliance_sub_category)
-    if not compliance_subcategory.project_template:
-        return
+	compliance_subcategory = frappe.get_doc("Compliance Sub Category", doc.compliance_sub_category)
+	if not compliance_subcategory.project_template:
+		return
 
-    project_template = frappe.get_doc("Project Template", compliance_subcategory.project_template)
-    if not project_template.enable_task_readiness_flow:
-        return
+	project_template = frappe.get_doc("Project Template", compliance_subcategory.project_template)
+	if not project_template.enable_task_readiness_flow:
+		return
 
-    # Fetch ordered task subjects from project template
-    template_task_subjects = [task.subject for task in project_template.tasks]
+	# Fetch ordered task subjects from project template
+	template_task_subjects = [task.subject for task in project_template.tasks]
 
-    if not template_task_subjects:
-        return
+	if not template_task_subjects:
+		return
 
-    # Check if subject matches the first one
-    if doc.subject == template_task_subjects[0]:
-        # Find the earliest task with this subject in this project
-        earliest_task = frappe.get_all(
-            "Task",
-            filters={
-                "project": doc.project,
-                "subject": doc.subject
-            },
-            fields=["name"],
-            order_by="creation asc",
-            limit=1
-        )
+	# Check if subject matches the first one
+	if doc.subject == template_task_subjects[0]:
+		# Find the earliest task with this subject in this project
+		earliest_task = frappe.get_all(
+			"Task",
+			filters={
+				"project": doc.project,
+				"subject": doc.subject
+			},
+			fields=["name"],
+			order_by="creation asc",
+			limit=1
+		)
 
-        if earliest_task and earliest_task[0].name == doc.name:
-            frappe.db.set_value("Task", doc.name, "readiness_status", "Ready")
-        else:
-            frappe.db.set_value("Task", doc.name, "readiness_status", "Not Ready")
-    else:
-        # For all tasks not matching the first subject
-        frappe.db.set_value("Task", doc.name, "readiness_status", "Not Ready")
+		if earliest_task and earliest_task[0].name == doc.name:
+			frappe.db.set_value("Task", doc.name, "readiness_status", "Ready")
+		else:
+			frappe.db.set_value("Task", doc.name, "readiness_status", "Not Ready")
+	else:
+		# For all tasks not matching the first subject
+		frappe.db.set_value("Task", doc.name, "readiness_status", "Not Ready")
 
 
 
 def on_task_update(doc, method=None):
-    if doc.status != "Completed" or doc.readiness_status != "Ready":
-        return
+	if doc.status != "Completed" or doc.readiness_status != "Ready":
+		return
 
-    project = frappe.get_doc("Project", doc.project)
-    if not project.compliance_sub_category:
-        return
+	project = frappe.get_doc("Project", doc.project)
+	if not project.compliance_sub_category:
+		return
 
-    compliance_subcategory = frappe.get_doc("Compliance Sub Category", project.compliance_sub_category)
-    if not compliance_subcategory.project_template:
-        return
+	compliance_subcategory = frappe.get_doc("Compliance Sub Category", project.compliance_sub_category)
+	if not compliance_subcategory.project_template:
+		return
 
-    project_template = frappe.get_doc("Project Template", compliance_subcategory.project_template)
-    template_task_subjects = [task.subject for task in project_template.tasks]
+	project_template = frappe.get_doc("Project Template", compliance_subcategory.project_template)
+	template_task_subjects = [task.subject for task in project_template.tasks]
 
-    try:
-        current_index = template_task_subjects.index(doc.subject)
-        if current_index + 1 < len(template_task_subjects):
-            next_subject = template_task_subjects[current_index + 1]
+	try:
+		current_index = template_task_subjects.index(doc.subject)
+		if current_index + 1 < len(template_task_subjects):
+			next_subject = template_task_subjects[current_index + 1]
 
-            next_task = frappe.get_all(
-                "Task",
-                filters={
-                    "project": doc.project,
-                    "subject": next_subject,
-                    "readiness_status": ["!=", "Ready"],
-                    "status": ["not in", ["Completed", "Cancelled"]]
-                },
-                fields=["name", "readiness_status"],
-                order_by="creation asc",
-                limit=1
-            )
+			next_task = frappe.get_all(
+				"Task",
+				filters={
+					"project": doc.project,
+					"subject": next_subject,
+					"readiness_status": ["!=", "Ready"],
+					"status": ["not in", ["Completed", "Cancelled"]]
+				},
+				fields=["name", "readiness_status"],
+				order_by="creation asc",
+				limit=1
+			)
 
-            if next_task:
-                frappe.db.set_value("Task", next_task[0].name, "readiness_status", "Ready")
+			if next_task:
+				frappe.db.set_value("Task", next_task[0].name, "readiness_status", "Ready")
 
-    except ValueError:
-        pass
+	except ValueError:
+		pass
 
 @frappe.whitelist()
 def check_readiness_edit_permission(user):
-    # Get the role allowed to change readiness status from Compliance Settings
-    allowed_role = frappe.db.get_single_value("Compliance Settings", "role_allowed_to_change_readiness_status")
+	# Get the role allowed to change readiness status from Compliance Settings
+	allowed_role = frappe.db.get_single_value("Compliance Settings", "role_allowed_to_change_readiness_status")
 
-    # Check if the given user has this role
-    has_role = frappe.db.exists("Has Role", {"parent": user, "role": allowed_role})
+	# Check if the given user has this role
+	has_role = frappe.db.exists("Has Role", {"parent": user, "role": allowed_role})
 
-    return True if has_role else False
+	return True if has_role else False
+
+def on_update(doc, method):
+	'''
+		Update the project's expected end date if the task's completion date is later.
+	'''	
+	if not doc.project or not doc.completed_on:
+		return
+
+	project = frappe.get_doc("Project", doc.project)
+
+	if project.expected_end_date < doc.completed_on:
+		project.db_set('expected_end_date', doc.completed_on)
+		comment_content = '<h2><b>Reason for updating project completion date:</b></h2>'
+		comment_content += f"Expected End Date updated to <b>{doc.completed_on}</b> based on Task <b>{doc.name}</b> completion."
+		project.add_comment(text=_(comment_content))
