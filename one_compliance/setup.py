@@ -8234,7 +8234,7 @@ def get_project_property_setters():
             "property": "options",
             "property_type": "Text",
             "row_name": None,
-            "value": "Open\nInvoiced\nPaid\nHold\nOverdue\nCompleted\nCancelled",
+            "value": "Open\nInvoiced\nPaid\nPartially Paid\nHold\nOverdue\nCompleted\nCancelled",
         },
     ]
 
