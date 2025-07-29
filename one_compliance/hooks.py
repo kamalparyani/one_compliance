@@ -175,7 +175,10 @@ doc_events = {
             'one_compliance.one_compliance.doc_events.todo.set_company_from_project',
             'one_compliance.one_compliance.doc_events.todo.set_company_from_event'
         ]
-    }
+    },
+    'Timesheet': {
+		"on_update": "one_compliance.one_compliance.doc_events.timesheet.check_lag_and_notify",
+	}
 }
 
 # Scheduled Tasks

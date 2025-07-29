@@ -22,6 +22,7 @@
   "column_break_gnzz",
   "customer_type",
   "default_tds_account",
+  "role_allowed_to_approve_lag_time",
   "task_settings_section",
   "task_template_series",
   "column_break_kqmy",
@@ -380,12 +381,18 @@
    "fieldtype": "Link",
    "label": "Role Allowed to Change Readiness Status",
    "options": "Role"
+  },
+  {
+   "fieldname": "role_allowed_to_approve_lag_time",
+   "fieldtype": "Link",
+   "label": "Role Allowed to approve Lag Time",
+   "options": "Role"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-07-10 09:59:56.364596",
+ "modified": "2025-07-28 16:30:46.490700",
  "modified_by": "Administrator",
  "module": "One Compliance",
  "name": "Compliance Settings",

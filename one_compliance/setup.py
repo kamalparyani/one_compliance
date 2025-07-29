@@ -14325,7 +14325,28 @@ def get_timesheet_detail_custom_fields():
 				"fieldname": "lag_time",
 				"fieldtype": "Duration",
 				"label": "Lag Time",
-				"insert_after": "to_time"
+				"insert_after": "description"
+			},
+			{
+				"fieldname": "approval_status",
+				"fieldtype": "Select",
+				"label": "Approval Status(Lag Time)",
+				"options": "\nApprove\nReject",
+				"insert_after": "lag_time"
+			},
+			{
+				"fieldname": "reason_for_lag_time",
+				"fieldtype": "Small Text",
+				"label": "Reason For Lag Time",
+				"insert_after": "completed"
+			},
+			{
+				"fieldname": "lag_notification_sent",
+				"fieldtype": "Check",
+				"label": "Lag Notification Sent",
+				"insert_after": "reason_for_lag_time",
+                "hidden": 1
 			}
+   
 		]
 	}
